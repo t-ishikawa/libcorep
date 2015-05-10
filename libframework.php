@@ -1,6 +1,6 @@
 <?php
 /**@file
- * PHP Simple Framework & Utility Functions.
+ * PHP Micro Framework & Utility Functions.
  * Copyright (C)2009-2015 ISHIKAWA Takahiro.
  *
  * @author   ISHIKAWA Takahiro <t.ishikawa@itlabj.com>
@@ -10,7 +10,7 @@
 
 define('FRAMEWORK_NAME'		, 'libframework');
 define('FRAMEWORK_VERSION'	, '7.3');
-define('FRAMEWORK_UPDATE'	, '2015-05-08');
+define('FRAMEWORK_UPDATE'	, '2015-05-10');
 
 /**
  * Framework class.
@@ -32,35 +32,39 @@ class Framework {
 			self::$SELF			= 'index';
 		self::$CONTROLLER		= filename($_SERVER['SCRIPT_FILENAME']);
 	}
-	static function loadConfig($f, $sec=false) {
+
+	static function loadConfig($f, $sec=false, $callback=false) {
 		$a = parse_ini_file($f,$sec);
-		foreach ($a as $k=>&$v) if (preg_match('/^(.*)\.(array|hash)$/',$k,$m)) {
-			$b = explode(',',trim($v));
-			foreach ($b as $v2) {
-				if ($m[2]=='hash') { 
-					$c = preg_split('/=/',$v2); $a[$m[1]][$c[0]] = preg_replace('/&equal;/','=',$c[1]); 
-				} else $a[$m[1]][] = preg_replace('/&comma;/',',',$v2);
-			}
-		}
-		self::$CONFIG = $a;
+		foreach ($a as $k=>$v) if (preg_match('/^(.*)\.(array|hash)$/',$k,$m))
+			$a[$m[1]] = ($m[2]=='hash') ? decode_hash($v) : decode_array($v);
+		if ($callback)
+			array_walk_recursive($a, $callback);
+		foreach ($a as $k=>$v)
+			self::$CONFIG[$k] = $v;
 	}
-	static function loadResource($lang) {
-		include_once('resource.'.$lang.'.php');
+
+	static function loadResource($f) {
+		include_once($f);
 		self::$CONST = $CONST;
 	}
+
 	static function redirect($url) {
 		header('Location: '.$url);
 		exit;
 	}
+
 	static function output($inc, $P=null) {
 		include($inc);
 	}
+
 	static function isPost() {
 		return ($_SERVER['REQUEST_METHOD']=='POST' ? true : false);
 	}
+
 	static function nl2br($s) {
 		return str_replace("\n", "<br>", $s);
 	}
+
 	static function log($v, $lv=LOG_WARNING) {
 		syslog($lv, $v."\n"); 
 	}
