@@ -1,5 +1,5 @@
 <?php
-/**@file
+/**
  * PHP Micro Framework & Utility Functions.
  * Copyright (C)2009-2015 ISHIKAWA Takahiro.
  *
@@ -15,17 +15,20 @@ define('FRAMEWORK_UPDATE'	, '2016-01-17');
 /**
  * Framework class.
  * 
- * @author (C)2009 ISHIKAWA Takahiro <t.ishikawa@itlabj.com>
+ * @author (C)2009-2016 ISHIKAWA Takahiro <t.ishikawa@itlabj.com>
  */
+
 class Framework {
 	public  $CONFIG			;
-	public  $CONST			;
+	public  $RES			;
 	public  $SELF			;
 	public	$AUTOLOADER		;
 	public  $CONTROLLER		;
-	public  $VIEW       	;
-	public  $PAGE			;
-	public  $AUTH			;
+	public  $PAGE			; 
+	public  $VIEW       	; // Implements FrameworkViewInterface
+	public  $AUTH			; // Implements FrameworkAuthInterface
+	public	$SESSION		; // Implements FrameworkSessionInterface 
+	public  $MESSAGE		; // Implements FrameworkMessageInterface
 
 	function init() {
 		$this->PAGE['startup']	= microtime(true);
@@ -33,10 +36,11 @@ class Framework {
 		if ($this->SELF == '')
 			$this->SELF			= 'index';
 		$this->CONTROLLER		= filename($_SERVER['SCRIPT_FILENAME']);
+		$this->CLASS_DIR		= './';
 	}
 
 	function autoloadControllerClass($class_name) {
-		require_once($this->BASE_DIR.strtolower(preg_replace('/Page$/','',$class_name)).'.php');
+		require_once($this->CLASS_DIR.strtolower(preg_replace('/Page$/','',$class_name)).'.php');
 	}
 
 	function autoloadController($class_name=false) {
@@ -67,7 +71,7 @@ class Framework {
 		$this->RES = &$RES;
 	}
 
-	function loadAuthModule($auth) {
+	function loadAuth($auth) {
 		$this->AUTH = $auth;
 		$this->AUTH->init();
 	}
@@ -85,13 +89,38 @@ class Framework {
 		return ($_SERVER['REQUEST_METHOD']=='POST' ? true : false);
 	}
 
-	function nl2br($s) {
-		return str_replace("\n", "<br>", $s);
-	}
-
 	function log($v, $lv=LOG_WARNING) {
 		syslog($lv, $v."\n"); 
 	}
+}
+
+interface FrameworkViewInterface {
+	public function initPage();
+	public function doFilter($P=false, $filterfunc=false);
+	public function doAuth($auth=true, $role=false);
+	public function command($CMD=false);
+	public function output($inc, $P=false, $filterfunc=false);
+	public function endPage();
+}
+
+interface FrameworkSessionInterface {
+	public function init();
+	public function get($k, $v);
+	public function set($k, $v);
+	public function clear();
+}
+
+interface FrameworkMessageInterface {
+	public function init();
+	public function get($type=false);
+	public function set($type, $msg, $p=false);
+	public function clear();
+	public function output($v);
+}
+
+interface FrameworkAuthInterface {
+	public function init();
+	public function auth();
 }
 
 class FrameworkException extends Exception {
@@ -102,6 +131,9 @@ class FrameworkException extends Exception {
 	}
 }
 
+//
+// Common functions:
+//
 
 function is_posint($v) {
 	return (is_numeric($v) && floor($v)==$v && $v>0) ? true : false;
