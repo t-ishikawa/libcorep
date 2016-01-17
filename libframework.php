@@ -5,12 +5,12 @@
  *
  * @author   ISHIKAWA Takahiro <t.ishikawa@itlabj.com>
  * @see      README.txt, LICENCE.txt (LGPL 2.1)
- * @version  7.4  (PHP 5.3 or above required)
+ * @version  8  (PHP 5.3 or above required)
  */
 
 define('FRAMEWORK_NAME'		, 'libframework');
-define('FRAMEWORK_VERSION'	, '7.3');
-define('FRAMEWORK_UPDATE'	, '2015-05-10');
+define('FRAMEWORK_VERSION'	, '8');
+define('FRAMEWORK_UPDATE'	, '2016-01-17');
 
 /**
  * Framework class.
@@ -18,54 +18,78 @@ define('FRAMEWORK_UPDATE'	, '2015-05-10');
  * @author (C)2009 ISHIKAWA Takahiro <t.ishikawa@itlabj.com>
  */
 class Framework {
-	static $SS			= 'FRAMEWORK';
-	static $PAGE		= array();
-	static $CONFIG		;
-	static $CONST		;
-	static $SELF		;
-	static $CONTROLLER	;
+	public  $CONFIG			;
+	public  $CONST			;
+	public  $SELF			;
+	public	$AUTOLOADER		;
+	public  $CONTROLLER		;
+	public  $VIEW       	;
+	public  $PAGE			;
+	public  $AUTH			;
 
-	static function init() {
-		self::$PAGE['startup']	= microtime(true);
-		self::$SELF				= mb_basename(preg_replace('/^(.*)\?.*$/', "\${1}", $_SERVER['REQUEST_URI']));
-		if (self::$SELF == '')
-			self::$SELF			= 'index';
-		self::$CONTROLLER		= filename($_SERVER['SCRIPT_FILENAME']);
+	function init() {
+		$this->PAGE['startup']	= microtime(true);
+		$this->SELF				= mb_basename(preg_replace('/^(.*)\?.*$/', "\${1}", $_SERVER['REQUEST_URI']));
+		if ($this->SELF == '')
+			$this->SELF			= 'index';
+		$this->CONTROLLER		= filename($_SERVER['SCRIPT_FILENAME']);
 	}
 
-	static function loadConfig($f, $sec=false, $callback=false) {
+	function autoloadControllerClass($class_name) {
+		require_once($this->BASE_DIR.strtolower(preg_replace('/Page$/','',$class_name)).'.php');
+	}
+
+	function autoloadController($class_name=false) {
+		if (!$class_name)
+			$class_name = $this->SELF;
+		spl_autoload_register(array($this, 'autoloadControllerClass'));
+		$this->CONTROLLER = basename($class_name);
+		$controller_class = ucfirst($this->CONTROLLER).'Page';
+		$this->VIEW = new $controller_class($this);
+		$this->VIEW->initPage();
+		$this->VIEW->command();
+		$this->VIEW->endPage();
+	}
+
+	function loadConfig($f, $sec=false, $callback=false) {
 		$a = parse_ini_file($f,$sec);
 		foreach ($a as $k=>$v) if (preg_match('/^(.*)\.(array|hash)$/',$k,$m))
 			$a[$m[1]] = ($m[2]=='hash') ? decode_hash($v) : decode_array($v);
 		if ($callback)
 			array_walk_recursive($a, $callback);
 		foreach ($a as $k=>$v)
-			self::$CONFIG[$k] = $v;
+			$this->CONFIG[$k] = $v;
 	}
 
-	static function loadResource($f) {
+	function loadResource($f) {
+		global $RES;
 		include_once($f);
-		self::$CONST = $CONST;
+		$this->RES = &$RES;
 	}
 
-	static function redirect($url) {
+	function loadAuthModule($auth) {
+		$this->AUTH = $auth;
+		$this->AUTH->init();
+	}
+
+	function redirect($url) {
 		header('Location: '.$url);
 		exit;
 	}
 
-	static function output($inc, $P=null) {
+	function output($inc, $P=null) {
 		include($inc);
 	}
 
-	static function isPost() {
+	function isPost() {
 		return ($_SERVER['REQUEST_METHOD']=='POST' ? true : false);
 	}
 
-	static function nl2br($s) {
+	function nl2br($s) {
 		return str_replace("\n", "<br>", $s);
 	}
 
-	static function log($v, $lv=LOG_WARNING) {
+	function log($v, $lv=LOG_WARNING) {
 		syslog($lv, $v."\n"); 
 	}
 }
